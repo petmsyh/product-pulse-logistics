@@ -5,11 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { QrCode, Search, MapPin, Package, Clock, Truck } from "lucide-react";
+import { useProducts, useTrackProduct } from "@/hooks/useProducts";
 
 const ProductTracking = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchBarcode, setSearchBarcode] = useState("");
   
-  const trackingData = [
+  const { data: products, isLoading } = useProducts();
+  const { data: trackingData } = useTrackProduct(searchBarcode);
+
+  // Use real data if available, otherwise fallback to mock data
+  const displayData = products || [
     {
       id: "PB-2024-001",
       name: "Ethiopian Coffee Premium",
@@ -42,6 +48,12 @@ const ProductTracking = () => {
     }
   ];
 
+  const handleSearch = () => {
+    if (searchTerm) {
+      setSearchBarcode(searchTerm);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Delivered": return "bg-emerald-100 text-emerald-700";
@@ -50,6 +62,12 @@ const ProductTracking = () => {
       default: return "bg-slate-100 text-slate-700";
     }
   };
+
+  const filteredData = displayData.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.barcode.includes(searchTerm)
+  );
 
   return (
     <div className="space-y-6">
@@ -73,19 +91,38 @@ const ProductTracking = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
+            <Button onClick={handleSearch} className="flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              Search
+            </Button>
             <Button className="flex items-center gap-2">
               <QrCode className="h-4 w-4" />
               Scan QR Code
             </Button>
           </div>
+          
+          {/* Show loading or tracking result */}
+          {isLoading && (
+            <div className="text-center py-4">
+              <p className="text-slate-600">Loading products...</p>
+            </div>
+          )}
+          
+          {trackingData && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="font-semibold text-blue-800 mb-2">Live Tracking Result</h3>
+              <p className="text-blue-700">{JSON.stringify(trackingData, null, 2)}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Tracking Results */}
       <div className="grid gap-6">
-        {trackingData.map((item) => (
+        {filteredData.map((item) => (
           <Card key={item.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex justify-between items-start">

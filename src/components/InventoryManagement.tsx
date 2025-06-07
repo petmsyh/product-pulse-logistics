@@ -6,11 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Truck, Package, AlertTriangle, Search, Plus, RefreshCw } from "lucide-react";
+import { useInventory, useLowStockItems, useExpiringItems, useUpdateStock } from "@/hooks/useInventory";
 
 const InventoryManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  
+  const { data: inventoryData, isLoading, refetch } = useInventory();
+  const { data: lowStockData } = useLowStockItems();
+  const { data: expiringData } = useExpiringItems();
+  const updateStockMutation = useUpdateStock();
 
-  const inventoryData = [
+  // Fallback data while loading or if API fails
+  const fallbackData = [
     {
       id: "INV-001",
       name: "Ethiopian Coffee Premium",
@@ -61,6 +68,8 @@ const InventoryManagement = () => {
     }
   ];
 
+  const displayData = inventoryData || fallbackData;
+  
   const getStatusColor = (status: string) => {
     switch (status) {
       case "In Stock": return "bg-emerald-100 text-emerald-700";
@@ -83,15 +92,23 @@ const InventoryManagement = () => {
     return diffDays <= 30;
   };
 
-  const filteredInventory = inventoryData.filter(item =>
+  const filteredInventory = displayData.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const criticalItems = inventoryData.filter(item => item.status === "Critical").length;
-  const lowStockItems = inventoryData.filter(item => item.status === "Low Stock").length;
-  const expiringItems = inventoryData.filter(item => isExpiringSoon(item.expiryDate)).length;
+  const criticalItems = displayData.filter(item => item.status === "Critical").length;
+  const lowStockItems = displayData.filter(item => item.status === "Low Stock").length;
+  const expiringItems = displayData.filter(item => isExpiringSoon(item.expiryDate)).length;
+
+  const handleUpdateStock = (id: string, quantity: number) => {
+    updateStockMutation.mutate({ id, quantity });
+  };
+
+  const handleRefresh = () => {
+    refetch();
+  };
 
   return (
     <div className="space-y-6">
@@ -102,7 +119,9 @@ const InventoryManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600">Total Items</p>
-                <p className="text-2xl font-bold text-slate-800">{inventoryData.length}</p>
+                <p className="text-2xl font-bold text-slate-800">
+                  {isLoading ? "..." : displayData.length}
+                </p>
               </div>
               <Package className="h-8 w-8 text-blue-600" />
             </div>
@@ -170,8 +189,13 @@ const InventoryManagement = () => {
               <Plus className="h-4 w-4" />
               Add Product
             </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4" />
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={handleRefresh}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
@@ -180,100 +204,120 @@ const InventoryManagement = () => {
 
       {/* Inventory Table */}
       <div className="grid gap-4">
-        {filteredInventory.map((item) => (
-          <Card key={item.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Product Info */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-slate-800">{item.name}</h3>
-                    <Badge className={getStatusColor(item.status)}>
-                      {item.status}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1 text-sm text-slate-600">
-                    <p><span className="font-medium">ID:</span> {item.id}</p>
-                    <p><span className="font-medium">Category:</span> {item.category}</p>
-                    <p><span className="font-medium">Location:</span> {item.location}</p>
-                    <p><span className="font-medium">Last Restocked:</span> {item.lastRestocked}</p>
-                  </div>
-                </div>
-
-                {/* Stock Levels */}
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="font-medium">Stock Level</span>
-                      <span className="text-slate-600">
-                        {item.currentStock} / {item.maxStock}
-                      </span>
-                    </div>
-                    <Progress 
-                      value={getStockLevel(item.currentStock, item.minimumStock, item.maxStock)} 
-                      className="h-2"
-                    />
-                    <div className="flex justify-between text-xs text-slate-500 mt-1">
-                      <span>Min: {item.minimumStock}</span>
-                      <span>Current: {item.currentStock}</span>
-                      <span>Max: {item.maxStock}</span>
-                    </div>
-                  </div>
-
-                  {/* Expiry Info */}
-                  <div className="p-3 bg-slate-50 rounded-lg">
-                    <p className="text-sm font-medium text-slate-700 mb-1">
-                      Expiry Date
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">{item.expiryDate}</span>
-                      {isExpiringSoon(item.expiryDate) && (
-                        <Badge className="bg-red-100 text-red-700 text-xs">
-                          Expires Soon!
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm">
-                      View Details
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Edit Stock
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Restock
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Move Location
-                    </Button>
-                  </div>
-
-                  {/* Quick Restock */}
-                  {(item.status === "Low Stock" || item.status === "Critical") && (
-                    <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
-                      <p className="text-xs font-medium text-amber-800 mb-2">Quick Restock</p>
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="Quantity" 
-                          className="text-xs h-8"
-                          defaultValue={item.maxStock - item.currentStock}
-                        />
-                        <Button size="sm" className="h-8 text-xs">
-                          Order
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+        {isLoading ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-slate-600">Loading inventory data...</p>
             </CardContent>
           </Card>
-        ))}
+        ) : (
+          filteredInventory.map((item) => (
+            <Card key={item.id} className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Product Info */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-slate-800">{item.name}</h3>
+                      <Badge className={getStatusColor(item.status)}>
+                        {item.status}
+                      </Badge>
+                    </div>
+                    <div className="space-y-1 text-sm text-slate-600">
+                      <p><span className="font-medium">ID:</span> {item.id}</p>
+                      <p><span className="font-medium">Category:</span> {item.category}</p>
+                      <p><span className="font-medium">Location:</span> {item.location}</p>
+                      <p><span className="font-medium">Last Restocked:</span> {item.lastRestocked}</p>
+                    </div>
+                  </div>
+
+                  {/* Stock Levels */}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="font-medium">Stock Level</span>
+                        <span className="text-slate-600">
+                          {item.currentStock} / {item.maxStock}
+                        </span>
+                      </div>
+                      <Progress 
+                        value={getStockLevel(item.currentStock, item.minimumStock, item.maxStock)} 
+                        className="h-2"
+                      />
+                      <div className="flex justify-between text-xs text-slate-500 mt-1">
+                        <span>Min: {item.minimumStock}</span>
+                        <span>Current: {item.currentStock}</span>
+                        <span>Max: {item.maxStock}</span>
+                      </div>
+                    </div>
+
+                    {/* Expiry Info */}
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                      <p className="text-sm font-medium text-slate-700 mb-1">
+                        Expiry Date
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-600">{item.expiryDate}</span>
+                        {isExpiringSoon(item.expiryDate) && (
+                          <Badge className="bg-red-100 text-red-700 text-xs">
+                            Expires Soon!
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm">
+                        View Details
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        Edit Stock
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        Restock
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        Move Location
+                      </Button>
+                    </div>
+
+                    {/* Quick Restock */}
+                    {(item.status === "Low Stock" || item.status === "Critical") && (
+                      <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                        <p className="text-xs font-medium text-amber-800 mb-2">Quick Restock</p>
+                        <div className="flex gap-2">
+                          <Input 
+                            placeholder="Quantity" 
+                            className="text-xs h-8"
+                            defaultValue={item.maxStock - item.currentStock}
+                            id={`restock-${item.id}`}
+                          />
+                          <Button 
+                            size="sm" 
+                            className="h-8 text-xs"
+                            onClick={() => {
+                              const input = document.getElementById(`restock-${item.id}`) as HTMLInputElement;
+                              const quantity = parseInt(input.value);
+                              if (quantity) {
+                                handleUpdateStock(item.id, quantity);
+                              }
+                            }}
+                            disabled={updateStockMutation.isPending}
+                          >
+                            Order
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
