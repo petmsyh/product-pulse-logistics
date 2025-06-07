@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,60 +19,8 @@ const InventoryManagement = () => {
   const { data: expiringData } = useExpiringItems();
   const updateStockMutation = useUpdateStock();
 
-  // Fallback data while loading or if API fails
-  const fallbackData = [
-    {
-      id: "INV-001",
-      name: "Ethiopian Coffee Premium",
-      category: "Beverages",
-      currentStock: 1250,
-      minimumStock: 500,
-      maxStock: 2000,
-      location: "Warehouse A",
-      expiryDate: "2024-06-15",
-      status: "In Stock",
-      lastRestocked: "2024-01-10"
-    },
-    {
-      id: "INV-002",
-      name: "Organic Teff Grain",
-      category: "Grains",
-      currentStock: 180,
-      minimumStock: 200,
-      maxStock: 1000,
-      location: "Warehouse B", 
-      expiryDate: "2024-08-20",
-      status: "Low Stock",
-      lastRestocked: "2024-01-08"
-    },
-    {
-      id: "INV-003",
-      name: "Honey Processing Kit",
-      category: "Equipment",
-      currentStock: 45,
-      minimumStock: 100,
-      maxStock: 300,
-      location: "Warehouse C",
-      expiryDate: "N/A",
-      status: "Critical",
-      lastRestocked: "2024-01-05"
-    },
-    {
-      id: "INV-004",
-      name: "Organic Spice Mix",
-      category: "Spices",
-      currentStock: 890,
-      minimumStock: 300,
-      maxStock: 1200,
-      location: "Warehouse A",
-      expiryDate: "2024-04-30",
-      status: "In Stock",
-      lastRestocked: "2024-01-12"
-    }
-  ];
-
   // Combine API data with CSV uploaded products
-  const allProducts = [...(inventoryData || fallbackData), ...csvProducts];
+  const allProducts = [...(inventoryData || []), ...csvProducts];
   const displayData = allProducts;
   
   const getStatusColor = (status: string) => {
@@ -119,6 +68,18 @@ const InventoryManagement = () => {
     setShowCsvUpload(false);
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-slate-600">Loading inventory data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Inventory Overview */}
@@ -128,9 +89,7 @@ const InventoryManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-600">Total Items</p>
-                <p className="text-2xl font-bold text-slate-800">
-                  {isLoading ? "..." : displayData.length}
-                </p>
+                <p className="text-2xl font-bold text-slate-800">{displayData.length}</p>
               </div>
               <Package className="h-8 w-8 text-blue-600" />
             </div>
@@ -226,10 +185,10 @@ const InventoryManagement = () => {
 
       {/* Inventory Table */}
       <div className="grid gap-4">
-        {isLoading ? (
+        {displayData.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center">
-              <p className="text-slate-600">Loading inventory data...</p>
+              <p className="text-slate-600">No inventory data available. Please check your backend connection or upload some products via CSV.</p>
             </CardContent>
           </Card>
         ) : (

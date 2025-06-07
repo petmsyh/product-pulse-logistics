@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -12,11 +13,10 @@ const DashboardOverview = () => {
   const { data: lowStockItems, isLoading: stockLoading } = useLowStockItems();
   const { data: feedbackStats, isLoading: feedbackLoading } = useFeedbackStats();
 
-  // Fallback data while loading or if API fails
   const dashboardMetrics = [
     {
       title: "Total Products",
-      value: metrics?.totalProducts || "12,847",
+      value: metricsLoading ? "Loading..." : metrics?.totalProducts || "0",
       change: "+12%",
       trend: "up",
       icon: Package,
@@ -24,7 +24,7 @@ const DashboardOverview = () => {
     },
     {
       title: "Active Shipments",
-      value: metrics?.activeShipments || "1,248",
+      value: metricsLoading ? "Loading..." : metrics?.activeShipments || "0",
       change: "+5%",
       trend: "up",
       icon: MapPin,
@@ -32,7 +32,7 @@ const DashboardOverview = () => {
     },
     {
       title: "Customer Feedback",
-      value: feedbackStats?.averageRating || "4.8/5",
+      value: feedbackLoading ? "Loading..." : feedbackStats?.averageRating || "N/A",
       change: "+0.2",
       trend: "up",
       icon: Users,
@@ -40,7 +40,7 @@ const DashboardOverview = () => {
     },
     {
       title: "Expiry Alerts",
-      value: expiryAlerts?.count || lowStockItems?.length || "23",
+      value: expiryLoading ? "Loading..." : expiryAlerts?.count || stockLoading ? "Loading..." : lowStockItems?.length || "0",
       change: "-8",
       trend: "down",
       icon: AlertTriangle,
@@ -48,13 +48,21 @@ const DashboardOverview = () => {
     }
   ];
 
-  const recentActivity = metrics?.recentActivity || [
-    { id: 1, action: "Product batch PB-2024-001 scanned at Warehouse A", time: "2 minutes ago", status: "success" },
-    { id: 2, action: "Expiry alert triggered for 15 items", time: "5 minutes ago", status: "warning" },
-    { id: 3, action: "Customer feedback received: Gold rating", time: "8 minutes ago", status: "success" },
-    { id: 4, action: "Defect traced to manufacturing batch MB-2024-156", time: "12 minutes ago", status: "error" },
-    { id: 5, action: "New shipment created for Route R-ETH-001", time: "15 minutes ago", status: "info" }
-  ];
+  if (metricsLoading || expiryLoading || stockLoading || feedbackLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((index) => (
+            <Card key={index} className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="text-center text-slate-600">Loading...</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -70,7 +78,7 @@ const DashboardOverview = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-800">
-                {metricsLoading ? "Loading..." : metric.value}
+                {metric.value}
               </div>
               <p className="text-xs text-slate-600 flex items-center mt-1">
                 <TrendingUp className="h-3 w-3 mr-1 text-emerald-500" />
@@ -92,19 +100,25 @@ const DashboardOverview = () => {
             <CardDescription>Latest system activities and updates</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
-                <div className={`w-2 h-2 rounded-full mt-2 ${
-                  activity.status === 'success' ? 'bg-emerald-500' :
-                  activity.status === 'warning' ? 'bg-amber-500' :
-                  activity.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
-                }`} />
-                <div className="flex-1">
-                  <p className="text-sm text-slate-800">{activity.action}</p>
-                  <p className="text-xs text-slate-500 mt-1">{activity.time}</p>
+            {metrics?.recentActivity?.length > 0 ? (
+              metrics.recentActivity.map((activity: any) => (
+                <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+                  <div className={`w-2 h-2 rounded-full mt-2 ${
+                    activity.status === 'success' ? 'bg-emerald-500' :
+                    activity.status === 'warning' ? 'bg-amber-500' :
+                    activity.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
+                  }`} />
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-800">{activity.action}</p>
+                    <p className="text-xs text-slate-500 mt-1">{activity.time}</p>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center text-slate-600 py-4">
+                No recent activity data available
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
 
@@ -115,34 +129,42 @@ const DashboardOverview = () => {
             <CardDescription>Current system performance metrics</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Database Performance</span>
-                <span className="text-emerald-600">{metrics?.systemHealth?.database || "98"}%</span>
+            {metrics?.systemHealth ? (
+              <>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Database Performance</span>
+                    <span className="text-emerald-600">{metrics.systemHealth.database}%</span>
+                  </div>
+                  <Progress value={metrics.systemHealth.database} className="h-2" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>API Response Time</span>
+                    <span className="text-emerald-600">{metrics.systemHealth.apiResponse}%</span>
+                  </div>
+                  <Progress value={metrics.systemHealth.apiResponse} className="h-2" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>AI Processing</span>
+                    <span className="text-amber-600">{metrics.systemHealth.aiProcessing}%</span>
+                  </div>
+                  <Progress value={metrics.systemHealth.aiProcessing} className="h-2" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Storage Usage</span>
+                    <span className="text-blue-600">{metrics.systemHealth.storage}%</span>
+                  </div>
+                  <Progress value={metrics.systemHealth.storage} className="h-2" />
+                </div>
+              </>
+            ) : (
+              <div className="text-center text-slate-600 py-4">
+                System health data not available
               </div>
-              <Progress value={metrics?.systemHealth?.database || 98} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>API Response Time</span>
-                <span className="text-emerald-600">{metrics?.systemHealth?.apiResponse || "92"}%</span>
-              </div>
-              <Progress value={metrics?.systemHealth?.apiResponse || 92} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>AI Processing</span>
-                <span className="text-amber-600">{metrics?.systemHealth?.aiProcessing || "85"}%</span>
-              </div>
-              <Progress value={metrics?.systemHealth?.aiProcessing || 85} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Storage Usage</span>
-                <span className="text-blue-600">{metrics?.systemHealth?.storage || "67"}%</span>
-              </div>
-              <Progress value={metrics?.systemHealth?.storage || 67} className="h-2" />
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
