@@ -39,21 +39,26 @@ const CsvUpload = ({ onProductsUploaded }: CsvUploadProps) => {
         try {
           const products = results.data.map((row: any, index: number) => {
             // Validate required fields
-            if (!row.name || !row.category || !row.currentStock) {
+            if (!row.productName || !row.categoryName || !row.productId) {
               throw new Error(`Missing required fields in row ${index + 1}`);
             }
 
             return {
-              id: row.id || `CSV-${Date.now()}-${index}`,
-              name: row.name,
-              category: row.category,
-              currentStock: parseInt(row.currentStock) || 0,
-              minimumStock: parseInt(row.minimumStock) || 0,
-              maxStock: parseInt(row.maxStock) || 1000,
-              location: row.location || 'Warehouse A',
+              id: row.productId || `CSV-${Date.now()}-${index}`,
+              name: row.productName,
+              category: row.categoryName,
+              currentStock: parseInt(row.holdingCapacity) || 0,
+              minimumStock: Math.floor((parseInt(row.holdingCapacity) || 0) * 0.2), // 20% of holding capacity
+              maxStock: parseInt(row.holdingCapacity) || 1000,
+              location: row.location || 'Unknown Location',
+              locationId: row.locationId || 'LOC-001',
               expiryDate: row.expiryDate || 'N/A',
-              status: row.status || 'In Stock',
-              lastRestocked: row.lastRestocked || new Date().toISOString().split('T')[0]
+              barcode: row.product_barcode || `BAR-${Date.now()}-${index}`,
+              registrationDate: row.registrationDate || new Date().toISOString().split('T')[0],
+              packageRegistrationDate: row.packageRegistrationDate || new Date().toISOString().split('T')[0],
+              status: (parseInt(row.holdingCapacity) || 0) > 100 ? 'In Stock' : 
+                     (parseInt(row.holdingCapacity) || 0) > 20 ? 'Low Stock' : 'Critical',
+              lastRestocked: row.packageRegistrationDate || new Date().toISOString().split('T')[0]
             };
           });
 
@@ -93,15 +98,16 @@ const CsvUpload = ({ onProductsUploaded }: CsvUploadProps) => {
   };
 
   const downloadTemplate = () => {
-    const template = `name,category,currentStock,minimumStock,maxStock,location,expiryDate,status,lastRestocked
-Ethiopian Coffee Premium,Beverages,1250,500,2000,Warehouse A,2024-06-15,In Stock,2024-01-10
-Organic Teff Grain,Grains,180,200,1000,Warehouse B,2024-08-20,Low Stock,2024-01-08`;
+    const template = `categoryName,productId,productName,holdingCapacity,packageRegistrationDate,product_barcode,registrationDate,location,locationId,expiryDate
+Beverages,PROD-001,Ethiopian Coffee Premium,1250,2024-01-10,BAR-COFFEE-001,2024-01-10,Warehouse A,LOC-A001,2024-06-15
+Grains,PROD-002,Organic Teff Grain,180,2024-01-08,BAR-TEFF-002,2024-01-08,Warehouse B,LOC-B001,2024-08-20
+Dairy,PROD-003,Fresh Milk 1L,500,2024-01-12,BAR-MILK-003,2024-01-12,Cold Storage,LOC-C001,2024-02-15`;
 
     const blob = new Blob([template], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'inventory_template.csv';
+    a.download = 'product_template.csv';
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -114,7 +120,7 @@ Organic Teff Grain,Grains,180,200,1000,Warehouse B,2024-08-20,Low Stock,2024-01-
           Bulk Upload Products
         </CardTitle>
         <CardDescription>
-          Upload multiple products at once using a CSV file
+          Upload multiple products at once using a CSV file with the specified format
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -133,7 +139,7 @@ Organic Teff Grain,Grains,180,200,1000,Warehouse B,2024-08-20,Low Stock,2024-01-
             className="flex items-center gap-2"
           >
             <FileText className="h-4 w-4" />
-            Template
+            Download Template
           </Button>
         </div>
 
@@ -152,13 +158,25 @@ Organic Teff Grain,Grains,180,200,1000,Warehouse B,2024-08-20,Low Stock,2024-01-
         )}
 
         <div className="text-sm text-slate-600">
-          <p className="font-medium mb-1">CSV Format Requirements:</p>
-          <ul className="text-xs space-y-1 list-disc list-inside">
-            <li>Required fields: name, category, currentStock</li>
-            <li>Optional fields: minimumStock, maxStock, location, expiryDate, status, lastRestocked</li>
-            <li>Use comma-separated values</li>
-            <li>First row should contain column headers</li>
-          </ul>
+          <p className="font-medium mb-2">CSV Format Requirements:</p>
+          <div className="bg-slate-50 p-3 rounded-lg">
+            <p className="font-medium text-xs mb-2">Required Columns:</p>
+            <ul className="text-xs space-y-1 list-disc list-inside ml-2">
+              <li><code>categoryName</code> - Product category</li>
+              <li><code>productId</code> - Unique product identifier</li>
+              <li><code>productName</code> - Name of the product</li>
+              <li><code>holdingCapacity</code> - Stock quantity</li>
+              <li><code>packageRegistrationDate</code> - Package registration date (YYYY-MM-DD)</li>
+              <li><code>product_barcode</code> - Product barcode</li>
+              <li><code>registrationDate</code> - Product registration date (YYYY-MM-DD)</li>
+              <li><code>location</code> - Storage location name</li>
+              <li><code>locationId</code> - Location identifier</li>
+              <li><code>expiryDate</code> - Expiration date (YYYY-MM-DD)</li>
+            </ul>
+          </div>
+          <p className="text-xs mt-2 text-slate-500">
+            Click "Download Template" to get a sample CSV file with the correct format.
+          </p>
         </div>
       </CardContent>
     </Card>
