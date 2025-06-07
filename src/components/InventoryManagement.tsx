@@ -1,15 +1,17 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Truck, Package, AlertTriangle, Search, Plus, RefreshCw } from "lucide-react";
+import { Truck, Package, AlertTriangle, Search, Plus, RefreshCw, Upload } from "lucide-react";
 import { useInventory, useLowStockItems, useExpiringItems, useUpdateStock } from "@/hooks/useInventory";
+import CsvUpload from "./CsvUpload";
 
 const InventoryManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showCsvUpload, setShowCsvUpload] = useState(false);
+  const [csvProducts, setCsvProducts] = useState<any[]>([]);
   
   const { data: inventoryData, isLoading, refetch } = useInventory();
   const { data: lowStockData } = useLowStockItems();
@@ -68,7 +70,9 @@ const InventoryManagement = () => {
     }
   ];
 
-  const displayData = inventoryData || fallbackData;
+  // Combine API data with CSV uploaded products
+  const allProducts = [...(inventoryData || fallbackData), ...csvProducts];
+  const displayData = allProducts;
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -108,6 +112,11 @@ const InventoryManagement = () => {
 
   const handleRefresh = () => {
     refetch();
+  };
+
+  const handleCsvProductsUploaded = (products: any[]) => {
+    setCsvProducts(prevProducts => [...prevProducts, ...products]);
+    setShowCsvUpload(false);
   };
 
   return (
@@ -165,6 +174,11 @@ const InventoryManagement = () => {
         </Card>
       </div>
 
+      {/* CSV Upload Section */}
+      {showCsvUpload && (
+        <CsvUpload onProductsUploaded={handleCsvProductsUploaded} />
+      )}
+
       {/* Search and Actions */}
       <Card>
         <CardHeader>
@@ -188,6 +202,14 @@ const InventoryManagement = () => {
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               Add Product
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={() => setShowCsvUpload(!showCsvUpload)}
+            >
+              <Upload className="h-4 w-4" />
+              {showCsvUpload ? 'Hide' : 'Bulk Upload'}
             </Button>
             <Button 
               variant="outline" 
