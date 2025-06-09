@@ -56,7 +56,7 @@ export const analyticsApi = {
 
 // User/Auth API calls
 export const authApi = {
-  login: (credentials: { email: string; password: string }) => api.post('/auth/login', credentials),
+  login: (credentials: { email: string; password: string; role?: string }) => api.post('/auth/login', credentials),
   register: (userData: any) => api.post('/auth/register', userData),
   getProfile: () => api.get('/auth/profile'),
   logout: () => api.post('/auth/logout'),
